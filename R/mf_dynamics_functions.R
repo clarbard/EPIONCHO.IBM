@@ -133,9 +133,13 @@ mf.die <- rbinom(N, pmax(0L, mf.cur), mf.mort)
    
     #aging out at rate mf.move
   #  mf.loss.aged <- rbinom(N, (mf.cur - mf.die),rep((DT/time.each.comp), mf.move))
-   remaining <- pmax(0L, mf.cur - mf.die)
-mf.loss.aged <- rbinom(N, remaining, rep((DT/time.each.comp), mf.move)) 
-    
+#   remaining <- pmax(0L, mf.cur - mf.die)
+ # mf.loss.aged <- rbinom(N, remaining, rep((DT/time.each.comp), mf.move)) 
+ 
+mf.loss.aged <- rbinom(N, pmax(0L, mf.cur - mf.die), (DT/time.each.comp))
+
+
+   
     ##should i add some checks for <0 values?
 #^did
 
@@ -150,8 +154,8 @@ mf.loss.aged <- rbinom(N, remaining, rep((DT/time.each.comp), mf.move))
     #checking for MF in age compartment after death and aging, will deal with age class 1 in a sec
 #gotta define a in.param var, check if there is one for MF aging [CHECK] 
 #just use mf.move.rate? mf.move
-   in.param <- mf.move
-
+   #in.param <- mf.move
+in.param <- rep(1 - exp(-mf.move * DT), N) #hopefully will fix NAs
 
 mf.age.in[1:N] <- mf.birthed #CHECK WHAT mf.birthed outputs, if it's a vector for all individuals or just one?
 
@@ -287,9 +291,9 @@ mf.mu <- rep(1 - exp(-mu.rates.mf[mf.cpt] * DT), N)
 
     #aging out at rate mf.move
 #    mf.loss.aged <- rbinom(N, (mf.cur - mf.die),rep((DT/time.each.comp), mf.move))
- remaining <- pmax(0L, mf.cur - mf.die)
-mf.loss.aged <- rbinom(N, remaining, rep((DT/time.each.comp), mf.move))  
-
+# remaining <- pmax(0L, mf.cur - mf.die)
+# mf.loss.aged <- rbinom(N, remaining, rep((DT/time.each.comp), mf.move))  
+mf.loss.aged <- rbinom(N, pmax(0L, mf.cur - mf.die), (DT/time.each.comp))
 
     #now to make mf.age.in stochastic, we have mf.birthed <- new.in, so the age 1 is fine, just need f$
 #can use from det defn mf.in = dat[, 6 + mf.cpt], should mimic mf.loss.aged
@@ -301,8 +305,8 @@ mf.loss.aged <- rbinom(N, remaining, rep((DT/time.each.comp), mf.move))
     #checking for MF in age compartment after death and aging, will deal with age class 1 in a sec
 #gotta define a in.param var, check if there is one for MF aging [CHECK]
 #just use mf.move.rate? mf.move
-   in.param <- mf.move
-      
+  # in.param <- mf.move
+   in.param <- rep(1 - exp(-mf.move * DT), N)   
    
    if(length(temp.in) >0) {
        mf.age.in[temp.in] <- rbinom(length(temp.in),
