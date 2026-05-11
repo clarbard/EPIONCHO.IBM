@@ -25,24 +25,44 @@ rotate <- function(x) {
 #' @param num.comps number of age classes in adult worms
 #' @param ws  column in main matrix where worm age compartments start for each individual 
 #' @param ep.in fecundity of female worms (based on fec.rates in adult female worms (m(a) in Hamley et al. 2019))
-#' @param mf.start column (first age compartment) in matrix where mf begin, in order to calculate which column to use depending on compartment
-#' @param compartment which worm age-compartment (iteration k)
+#' @param mf.st (initialised at 7)  column (first age compartment) in matrix where mf begin, in order to calculate which column to use depending on compartment
 #' @param total.dat main matrix containing different worm compartments for age-classes; can i just use dat? or does this skip that param defn?
 #' @param treat.vec vector of treatment values for each individuals, to specify human population length with/without treatment 
-#' @param mf.mort mf.mu rate specified for first age class in each human
-#' @param mf.move determines mf aging (moving rate to the next age class)
+# mf.mort mf.mu rate specified for first age class in each human
+# mf.move determines mf aging (moving rate to the next age class)
 #' @param DT timestep
 #' @param time.each.comp Duration of each age class for MF (q_M in Hamley et al. 2019 supp)
-#' 
+#'
 #' @returns vector/matrix? of values for MF count per individual
 
 #change.micro.stochastic, if change rest of functinos; this is the stochastic version
-change.micro <- function(give.treat, mu.rates.mf, mf.cpt, num.comps, ws,  ep.in, mf.start, compartment, total.dat, treat.vec, mf.mort, mf.move, DT, time.each.comp){
+change.micro <- function(mf.st = 7, give.treat= give.treat, mu.rates.mf= mort.rates.mf,
+		 iteration = i,  mf.cpt=mf.c, num.comps=num.comps.worm, ws=worms.start,
+                 total.dat= all.mats.cur, treat.vec=treat.vec.in,
+                 DT=DT, time.each.comp=time.each.comp.worms,dat = all.mats.cur,
+		 num.mf.comps = num.mf.comps, fec.rates = fec.rates.worms, mf.move.rate = mf.move.rate,
+		 up = up, kap = kap, treat.start = treat.start){
   
+
+
+
+
+  #for both
+
+   ep.in <- fec.rates
+   mf.move = mf.move.rate
+
+
+
+ #mp is just length of human population, so to account for treatment we can just use human population definition used for adult worms
+   N <- length(treat.vec)
+
+   mf.mu <- rep(mu.rates.mf[mf.cpt], N)
+
   
   #######FOR TREATMENT SCENARIO#####
 
-      if(give.treat == 1 & iteration >= treat.start){
+   if(give.treat == 1 & iteration >= treat.start){
     #taken from mf_dynamics_function directly
     tao <- ((iteration - 1) * DT) - treat.vec # tao is zero if treatment has been given at this timestep
 
@@ -68,15 +88,12 @@ change.micro <- function(give.treat, mu.rates.mf, mf.cpt, num.comps, ws,  ep.in,
     new.in <- rotate(rotate(rotate(new.in)))
     new.in <- rowSums(new.in)
     
-    compartments_ind <- (mf.start -1) + compartment
-    #there's mf.start to mf.end
+    compartments_ind <- (mf.st -1) + mf.cpt
+    #there's mf.st to mf.end
     mf.birthed <- new.in
     
     mf.cur <- total.dat[,compartments_ind]
     
-    
-    #mp is just length of human population, so to account for treatment we can just use human population definition used for adult worms
-    N <- length(treat.vec)
     
     mf.mort <- mf.mu
     
@@ -91,7 +108,7 @@ change.micro <- function(give.treat, mu.rates.mf, mf.cpt, num.comps, ws,  ep.in,
     
     
     #now the changes, by compartment
-    if(compartment ==1){
+    if(mf.cpt  ==1){
     mf.out <- mf.cur + mf.birthed - mf.die - mf.loss.aged
     
     
@@ -99,7 +116,7 @@ change.micro <- function(give.treat, mu.rates.mf, mf.cpt, num.comps, ws,  ep.in,
     
     }
     
-    if(compartment >1){
+    if(mf.cpt >1){
       
       mf.out <- mf.cur + mf.age.in - mf.die - mf.loss.aged
       
@@ -146,8 +163,11 @@ change.micro <- function(give.treat, mu.rates.mf, mf.cpt, num.comps, ws,  ep.in,
     new.in <- rotate(rotate(rotate(new.in)))
     new.in <- rowSums(new.in)
     
-    compartments_ind <- (mf.start -1) + compartment
-    #there's mf.start to mf.end
+
+    compartment <- mf.cpt
+
+    compartments_ind <- (mf.st -1) + compartment
+    #there's mf.st to mf.end
     mf.birthed <- new.in
     
     mf.cur <- total.dat[,compartments_ind]
