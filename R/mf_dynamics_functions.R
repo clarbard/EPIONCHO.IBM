@@ -41,6 +41,7 @@ change.micro <- function(mf.st = 7, give.treat= give.treat, mu.rates.mf= mort.ra
                  dat= all.mats.cur,
 		 treat.vec=treat.vec.in,
                  DT=DT, time.each.comp=time.each.comp.worms,
+		 aging_in = rep(0,N),
 		 num.mf.comps = num.mf.comps, fec.rates = fec.rates.worms, mf.move.rate = mf.move.rate,
 		 up = up, kap = kap, treat.start = treat.start){
   
@@ -91,8 +92,19 @@ change.micro <- function(mf.st = 7, give.treat= give.treat, mu.rates.mf= mort.ra
     
     compartments_ind <- (mf.st -1) + mf.cpt
     #there's mf.st to mf.end
-    mf.birthed <- new.in
+    mf.birthed <-rpois(N, new.in) # new.in updating, maybe change, just trying to make right shape
+
     
+#debug
+cat("NAs in new.in / mf.birthed:", sum(is.na(new.in)), "\n")
+cat("Length of new.in:", length(new.in), "\n")
+cat("new.in range:", range(new.in, na.rm = TRUE), "\n")
+
+
+
+
+
+
     mf.cur <- dat[,compartments_ind]
     #this might be where the big error is^^ check
  
@@ -149,51 +161,82 @@ mf.loss.aged <- rbinom(N, pmax(0L, mf.cur - mf.die), (DT/time.each.comp))
 #should define it as the aging in compartment that still has MF after death and aging
     
 
-    mf.age.in <- rep(0,N)
-    temp.in <- which((mf.cur - mf.die - mf.loss.aged) >0)
+ #   mf.age.in <- rep(0,N)
+#    temp.in <- which((mf.cur - mf.die - mf.loss.aged) >0)
     #checking for MF in age compartment after death and aging, will deal with age class 1 in a sec
 #gotta define a in.param var, check if there is one for MF aging [CHECK] 
 #just use mf.move.rate? mf.move
-   #in.param <- mf.move
+ 
+
+
+in.param <- mf.move
 in.param <- rep(1 - exp(-mf.move * DT), N) #hopefully will fix NAs
 
-mf.age.in[1:N] <- mf.birthed #CHECK WHAT mf.birthed outputs, if it's a vector for all individuals or just one?
+# mf.age.in[1:N] <- mf.birthed #CHECK WHAT mf.birthed outputs, if it's a vector for all individuals or just one?
 
 
 
-   if(length(temp.in) >0) {
-       mf.age.in[temp.in] <- rbinom(length(temp.in),
-              (mf.cur[temp.in] - mf.die[temp.in] - mf.loss.aged[temp.in]),
-               in.param[temp.in])
+#   if(length(temp.in) >0) {
+ #      mf.age.in[temp.in] <- rbinom(length(temp.in),
+  #            (mf.cur[temp.in] - mf.die[temp.in] - mf.loss.aged[temp.in]),
+   #            in.param[temp.in])
 
 
-}
+#}
 
 
     
     #now the changes, by compartment
-    if(mf.cpt  ==1){
-    mf.out <- mf.cur + mf.birthed - mf.die - mf.loss.aged
+#    if(mf.cpt  ==1){
+ #   mf.out <- mf.cur + mf.birthed - mf.die - mf.loss.aged
     
-    trans.mf.out <- which(mf.out < 0)
-    if(length(trans.mf.out)>0){print('MF negative output3')}
+#debug
+#cat("NAs in mf.out before return:", sum(is.na(mf.out)), "\n")
+
+
+#    trans.mf.out <- which(mf.out < 0)
+  #  if(length(trans.mf.out)>0){print('MF negative output3')}
     
-    }
+  #  }
     
-    if(mf.cpt >1){
-      
-      mf.out <- mf.cur + mf.age.in - mf.die - mf.loss.aged
-      
-      trans.mf.out <- which(mf.out < 0)
-      if(length(trans.mf.out)>0){print('MF negative output4')}
-      
-    }
-      }
+  #  if(mf.cpt >1){
+ # 
+#
+#mf.age.in <- rep(0,N)
+#temp.in <- which((mf.cur - mf.die - mf.loss.aged) >0)
+#if(length(temp.in) > 0) {
+ #       mf.age.in[temp.in] <- rbinom(length(temp.in),
+  #          (mf.cur[temp.in] - mf.die[temp.in] - mf.loss.aged[temp.in]),
+   #         in.param[temp.in])
+   # }
+
+
+    
+    #  mf.out <- mf.cur + mf.age.in - mf.die - mf.loss.aged
+
+#debug
+#cat("NAs in mf.out before return:", sum(is.na(mf.out)), "\n")
+ #     
+  #    trans.mf.out <- which(mf.out < 0)
+   #   if(length(trans.mf.out)>0){print('MF negative output4')}
+    #  
+   # }
+    #  }
+  
+  mf.loss.aged <- rbinom(N, pmax(0L, mf.cur - mf.die), (DT/time.each.comp))
+
+if(mf.cpt == 1){
+  mf.out <- mf.cur + mf.birthed - mf.die - mf.loss.aged
+}
+
+if(mf.cpt > 1){
+  mf.out <- mf.cur + aging_in - mf.die - mf.loss.aged  # aging_in comes from previous compartment
+}
+
+mf.out <- pmax(0L, mf.out)  # safety floor
   
   
-  
-  
-  
+}  
   
   
   
@@ -249,8 +292,16 @@ mf.mort <- mf.mu #unnecessary, and sloppy notation, but i'll fix later
 
     compartments_ind <- (mf.st -1) + compartment
     #there's mf.st to mf.end
-    mf.birthed <- new.in
+    mf.birthed <-rpois(N, new.in)# new.in changing to make right shape? check
     
+
+#debug
+cat("NAs in new.in / mf.birthed:", sum(is.na(new.in)), "\n")
+cat("Length of new.in:", length(new.in), "\n")
+cat("new.in range:", range(new.in, na.rm = TRUE), "\n")
+
+
+
     mf.cur <- dat[,compartments_ind]
 
 
@@ -300,48 +351,93 @@ mf.loss.aged <- rbinom(N, pmax(0L, mf.cur - mf.die), (DT/time.each.comp))
 #should define it as the aging in compartment that still has MF after death and aging
     
     
-    mf.age.in <- rep(0,N)
-    temp.in <- which((mf.cur - mf.die - mf.loss.aged) >0)
+#    mf.age.in <- rep(0,N)
+ #   temp.in <- which((mf.cur - mf.die - mf.loss.aged) >0)
     #checking for MF in age compartment after death and aging, will deal with age class 1 in a sec
 #gotta define a in.param var, check if there is one for MF aging [CHECK]
 #just use mf.move.rate? mf.move
-  # in.param <- mf.move
-   in.param <- rep(1 - exp(-mf.move * DT), N)   
+ 
+
+ in.param <- mf.move
+ in.param <- rep(1 - exp(-mf.move * DT), N)   
    
-   if(length(temp.in) >0) {
-       mf.age.in[temp.in] <- rbinom(length(temp.in),
-              (mf.cur[temp.in] - mf.die[temp.in] - mf.loss.aged[temp.in]),
-               in.param[temp.in])
+#   if(length(temp.in) >0) {
+ #      mf.age.in[temp.in] <- rbinom(length(temp.in),
+ #             (mf.cur[temp.in] - mf.die[temp.in] - mf.loss.aged[temp.in]),
+ #              in.param[temp.in])
        
  
-}   
+# }   
 
-mf.age.in[1:N] <- mf.birthed 
+# mf.age.in[1:N] <- mf.birthed 
 
 
 
  
-    #now the changes, by compartment
-    if(compartment ==1){
-    mf.out <- mf.cur + mf.birthed - mf.die - mf.loss.aged
-    trans.mf.out <- which(mf.out < 0)
-    if(length(trans.mf.out)>0){print('MF negative output1')}
+#    #now the changes, by compartment
+ #   if(mf.cpt ==1){
+
+
+  #  mf.out <- mf.cur + mf.birthed - mf.die - mf.loss.aged
+
+#debug
+#cat("NAs in mf.out before return:", sum(is.na(mf.out)), "\n")
+
+ #   trans.mf.out <- which(mf.out < 0)
+  #  if(length(trans.mf.out)>0){print('MF negative output1')}
+  #  
+  #  }
     
-    }
-    
-    if(compartment >1){
-      
-    mf.out <- mf.cur + mf.age.in - mf.die - mf.loss.aged
+  #  if(mf.cpt >1){
+  #   mf.age.in <- rep(0, N)
+  #  temp.in <- which((mf.cur - mf.die - mf.loss.aged) > 0)
+  #  if(length(temp.in) > 0) {
+  #      mf.age.in[temp.in] <- rbinom(length(temp.in),
+  #          (mf.cur[temp.in] - mf.die[temp.in] - mf.loss.aged[temp.in]),
+  #          in.param[temp.in])
+  #  }#
+
+
+
+   # mf.out <- mf.cur + mf.age.in - mf.die - mf.loss.aged
+
+
+
+
+#debug
+#cat("NAs in mf.out before return:", sum(is.na(mf.out)), "\n")
+
+
    
-    trans.mf.out <- which(mf.out < 0)
-    if(length(trans.mf.out)>0){print('MF negative output2')}
+ #   trans.mf.out <- which(mf.out < 0)
+  #  if(length(trans.mf.out)>0){print('MF negative output2')}
+   #   
       
-      
-    }}
+   # }}
     
+
+
+mf.loss.aged <- rbinom(N, pmax(0L, mf.cur - mf.die), (DT/time.each.comp))
+
+if(mf.cpt == 1){
+  mf.out <- mf.cur + mf.birthed - mf.die - mf.loss.aged
+}
+
+if(mf.cpt > 1){
+  mf.out <- mf.cur + aging_in - mf.die - mf.loss.aged  # aging_in comes from previous compartment
+}
+
+mf.out <- pmax(0L, mf.out)  # safety floor
+
+
+}
     
     #output, depending on scenario
-    return(mf.out)
+ #
+
+return(list(mf_out = mf.out, loss_aged = mf.loss.aged))
+
+ #  return(mf.out)
   }
 
 
