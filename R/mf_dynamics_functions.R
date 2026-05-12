@@ -92,7 +92,7 @@ change.micro <- function(mf.st = 7, give.treat= give.treat, mu.rates.mf= mort.ra
     
     compartments_ind <- (mf.st -1) + mf.cpt
     #there's mf.st to mf.end
-    mf.birthed <-rpois(N, new.in) # new.in updating, maybe change, just trying to make right shape
+    mf.birthed <-rpois(N, new.in*DT ) # new.in updating, maybe change, just trying to make right shape
 
     
 #debug
@@ -292,7 +292,7 @@ mf.mort <- mf.mu #unnecessary, and sloppy notation, but i'll fix later
 
     compartments_ind <- (mf.st -1) + compartment
     #there's mf.st to mf.end
-    mf.birthed <-rpois(N, new.in)# new.in changing to make right shape? check
+    mf.birthed <-rpois(N, new.in*DT)# new.in changing to make right shape? check
     
 
 #debug

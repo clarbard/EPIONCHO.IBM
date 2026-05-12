@@ -901,7 +901,11 @@ ep.equi.sim <- function(time.its,
 #replacing with :
 aging_in_from_prev <- rep(0, N)  # compartment 1 receives no aging-in
 for(mf.c in 1 : num.mf.comps) {
-  res.mf <- change.micro(..., aging_in = aging_in_from_prev)
+  res.mf <- change.micro(dat = all.mats.cur, num.comps =num.comps.worm, mf.cpt = mf.c,
+                             num.mf.comps = num.mf.comps, ws=worms.start, DT=DT, time.each.comp = time.each.comp.mf,
+                             mu.rates.mf = mort.rates.mf, fec.rates = fec.rates.worms, mf.move.rate = mf.move.rate, up = up, kap = kap, iteration = i,
+                             treat.vec = treat.vec.in, give.treat = give.treat, treat.start = treat.start,
+ aging_in = aging_in_from_prev)
   aging_in_from_prev <- res.mf$loss_aged   # pass this compartment's aged-out mf to next
   all.mats.temp[, 6 + mf.c] <- res.mf$mf_out
 }
