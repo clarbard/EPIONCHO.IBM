@@ -35,7 +35,6 @@ rotate <- function(x) {
 #'
 #' @returns vector/matrix? of values for MF count per individual
 
-#change.micro.stochastic, if change rest of functinos; this is the stochastic version
 change.micro <- function(mf.st = 7, give.treat= give.treat, mu.rates.mf= mort.rates.mf,
 		 iteration = i,  mf.cpt=mf.c, num.comps=num.comps.worm, ws=worms.start,
                  dat= all.mats.cur,
@@ -45,23 +44,14 @@ change.micro <- function(mf.st = 7, give.treat= give.treat, mu.rates.mf= mort.ra
 		 num.mf.comps = num.mf.comps, fec.rates = fec.rates.worms, mf.move.rate = mf.move.rate,
 		 up = up, kap = kap, treat.start = treat.start){
   
-
-
-
-
-  #for both
-  #ignore #just notation, keeping it consistent with model_wrappers, but also with object in this function
+  #for both scenarios (treatment & no treatment)
    ep.in <- fec.rates
    mf.move <- mf.move.rate
-
-
-
- #mp is just length of human population, so to account for treatment we can just use human population definition used for adult worms
    N <- length(treat.vec)
-
    mf.mu <- rep(mu.rates.mf[mf.cpt], N)
 
-  
+#there's a number of repetitions, could make this more concise   
+
   #######FOR TREATMENT SCENARIO#####
 
    if(give.treat == 1 & iteration >= treat.start){
@@ -74,198 +64,60 @@ change.micro <- function(mf.st = 7, give.treat= give.treat, mu.rates.mf= mort.ra
 
     mf.mu <- mf.mu + mu.mf.prime #this is the big change
 
-    ####DOES TERATMENT AFFECT THE NUMBER OF FERTILE WORMS??? OR IS IT MICROFILARICIDAL ONLY??
-  
   # indexes for fertile worms (to use in production of mf)
-  fert.worms.start <-  ws + num.comps * 2
-  fert.worms.end <-  (ws - 1) + num.comps * 3
+    fert.worms.start <-  ws + num.comps * 2
+    fert.worms.end <-  (ws - 1) + num.comps * 3
 
   # indexes to check if there are males (males start is just 'ws')
   # there must be >= 1 male worm for females to produce microfilariae
-  mal.worms.end <- (ws - 1) + num.comps
+    mal.worms.end <- (ws - 1) + num.comps
 
-  fert.worms <- dat[, fert.worms.start:fert.worms.end] #number of fertile females worms
+    fert.worms <- dat[, fert.worms.start:fert.worms.end] #number of fertile females worms
     #fertile worms + male worm -> new birthed mf
     new.in <- (rotate(fert.worms) * ep.in) #need to rotate matrix to each column is multiplied by respective fecundity rate, not each row
     new.in <- rotate(rotate(rotate(new.in)))
     new.in <- rowSums(new.in)
-    
+#indexing  compartment location    
     compartments_ind <- (mf.st -1) + mf.cpt
-    #there's mf.st to mf.end
-    mf.birthed <-rpois(N, new.in*DT ) # new.in updating, maybe change, just trying to make right shape
-
-    
-#debug
-cat("NAs in new.in / mf.birthed:", sum(is.na(new.in)), "\n")
-cat("Length of new.in:", length(new.in), "\n")
-cat("new.in range:", range(new.in, na.rm = TRUE), "\n")
+    mf.birthed <-rpois(N, new.in*DT ) # check, might be wrong scale, also check if Poisson?
 
 
+    mf.cur <- dat[,compartments_ind] #current MF load in compartment
+    #mortality -- check if correct
+    mf.mu <- rep(1 - exp(-mu.rates.mf[mf.cpt] * DT), N)
+    mf.mort <- mf.mu #unnecessary, and sloppy notation
+    #making death stochastic using rbinom()
+    mf.die <- rbinom(N, pmax(0L, mf.cur), mf.mort) 
+    #aging out using rbinom()
+    mf.loss.aged <- rbinom(N, pmax(0L, mf.cur - mf.die), (DT/time.each.comp))
 
+   #influx/movement param
+    in.param <- mf.move
+    in.param <- rep(1 - exp(-mf.move * DT), N) #hopefully will fix NAs
 
+#change by compartment
+    if(mf.cpt == 1){
+      mf.out <- mf.cur + mf.birthed - mf.die - mf.loss.aged
+     }
 
+    if(mf.cpt > 1){
+      mf.out <- mf.cur + aging_in - mf.die - mf.loss.aged  # aging_in comes from previous compartment
+     }
 
-    mf.cur <- dat[,compartments_ind]
-    #this might be where the big error is^^ check
- 
-
-#DEBUG CHECKS
-# --- DIAGNOSTICS (remove once fixed) ---
-cat("mf.cpt:", mf.cpt, "\n")
-cat("compartments_ind:", compartments_ind, "\n")
-cat("mf.cur range:", range(mf.cur, na.rm = TRUE), "\n")
-cat("NAs in mf.cur:", sum(is.na(mf.cur)), "\n")
-cat("Negatives in mf.cur:", sum(mf.cur < 0, na.rm = TRUE), "\n")
-cat("mf.mort range:", range(mf.mort, na.rm = TRUE), "\n")
-# ---------------------------------------
-
-
-
-
-
-
-   
-#    mf.mort <- mf.mu
-mf.mort <- 1 - exp(-mu.rates.mf[mf.cpt] * DT)
-mf.mu <- rep(1 - exp(-mu.rates.mf[mf.cpt] * DT), N)
-
-#was rates not probability, causing errors
-mf.mort <- mf.mu #unnecessary, and sloppy notation, but i'll fix later
-
-
-
-
-   
-    #mf.mu versus mf.mort?
-#    mf.die <- rbinom(N, mf.cur , mf.mort) #death from compartment
-#getting errors, need to curb nonneg
-mf.die <- rbinom(N, pmax(0L, mf.cur), mf.mort) 
-
-
-   
-    #aging out at rate mf.move
-  #  mf.loss.aged <- rbinom(N, (mf.cur - mf.die),rep((DT/time.each.comp), mf.move))
-#   remaining <- pmax(0L, mf.cur - mf.die)
- # mf.loss.aged <- rbinom(N, remaining, rep((DT/time.each.comp), mf.move)) 
- 
-mf.loss.aged <- rbinom(N, pmax(0L, mf.cur - mf.die), (DT/time.each.comp))
-
-
-   
-    ##should i add some checks for <0 values?
-#^did
-
-
-    #now to make mf.age.in stochastic, we have mf.birthed <- new.in, so the age 1 is fine, just need for future
-#can use from det defn mf.in = dat[, 6 + mf.cpt], should mimic mf.loss.aged
-#should define it as the aging in compartment that still has MF after death and aging
-    
-
- #   mf.age.in <- rep(0,N)
-#    temp.in <- which((mf.cur - mf.die - mf.loss.aged) >0)
-    #checking for MF in age compartment after death and aging, will deal with age class 1 in a sec
-#gotta define a in.param var, check if there is one for MF aging [CHECK] 
-#just use mf.move.rate? mf.move
- 
-
-
-in.param <- mf.move
-in.param <- rep(1 - exp(-mf.move * DT), N) #hopefully will fix NAs
-
-# mf.age.in[1:N] <- mf.birthed #CHECK WHAT mf.birthed outputs, if it's a vector for all individuals or just one?
-
-
-
-#   if(length(temp.in) >0) {
- #      mf.age.in[temp.in] <- rbinom(length(temp.in),
-  #            (mf.cur[temp.in] - mf.die[temp.in] - mf.loss.aged[temp.in]),
-   #            in.param[temp.in])
-
-
-#}
-
-
-    
-    #now the changes, by compartment
-#    if(mf.cpt  ==1){
- #   mf.out <- mf.cur + mf.birthed - mf.die - mf.loss.aged
-    
-#debug
-#cat("NAs in mf.out before return:", sum(is.na(mf.out)), "\n")
-
-
-#    trans.mf.out <- which(mf.out < 0)
-  #  if(length(trans.mf.out)>0){print('MF negative output3')}
-    
-  #  }
-    
-  #  if(mf.cpt >1){
- # 
-#
-#mf.age.in <- rep(0,N)
-#temp.in <- which((mf.cur - mf.die - mf.loss.aged) >0)
-#if(length(temp.in) > 0) {
- #       mf.age.in[temp.in] <- rbinom(length(temp.in),
-  #          (mf.cur[temp.in] - mf.die[temp.in] - mf.loss.aged[temp.in]),
-   #         in.param[temp.in])
-   # }
-
-
-    
-    #  mf.out <- mf.cur + mf.age.in - mf.die - mf.loss.aged
-
-#debug
-#cat("NAs in mf.out before return:", sum(is.na(mf.out)), "\n")
- #     
-  #    trans.mf.out <- which(mf.out < 0)
-   #   if(length(trans.mf.out)>0){print('MF negative output4')}
-    #  
-   # }
-    #  }
-  
-  mf.loss.aged <- rbinom(N, pmax(0L, mf.cur - mf.die), (DT/time.each.comp))
-
-if(mf.cpt == 1){
-  mf.out <- mf.cur + mf.birthed - mf.die - mf.loss.aged
-}
-
-if(mf.cpt > 1){
-  mf.out <- mf.cur + aging_in - mf.die - mf.loss.aged  # aging_in comes from previous compartment
-}
-
-mf.out <- pmax(0L, mf.out)  # safety floor
+   mf.out <- pmax(0L, mf.out)  # safety floor
   
   
 }  
   
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
   ###########NON-TREATMENT SCENARIO##############
-    if(give.treat == 0){
+ if(give.treat == 0){
       
-      
-#  mf.mort <- mf.mu
- 
-#    mf.mort <- mf.mu
-mf.mort <- 1 - exp(-mu.rates.mf[mf.cpt] * DT)
-mf.mu <- rep(mf.mort, N)
-#was rates not probability, causing errors
-mf.mort <- mf.mu #unnecessary, and sloppy notation, but i'll fix later
-    
+  #mortality      
+  mf.mort <- 1 - exp(-mu.rates.mf[mf.cpt] * DT)
+  mf.mu <- rep(mf.mort, N)
+  mf.mort <- mf.mu #unnecessary, and sloppy notation, but i'll fix later
 
-
-
-
-
- 
+  #checking for fertile female worms to birth new MF    
   # indexes for fertile worms (to use in production of mf)
   fert.worms.start <-  ws + num.comps * 2
   fert.worms.end <-  (ws - 1) + num.comps * 3
@@ -274,170 +126,50 @@ mf.mort <- mf.mu #unnecessary, and sloppy notation, but i'll fix later
   # there must be >= 1 male worm for females to produce microfilariae
   mal.worms.end <- (ws - 1) + num.comps
 
-
-
-
-
-
   fert.worms <- dat[, fert.worms.start:fert.worms.end] #number of fertile females worms
   
-
-    #fertile worms + male worm -> new birthed mf
-    new.in <- (rotate(fert.worms) * ep.in) #need to rotate matrix to each column is multiplied by respective fecundity rate, not each row
-    new.in <- rotate(rotate(rotate(new.in)))
-    new.in <- rowSums(new.in)
+  #fertile worms + male worm -> new birthed mf
+  new.in <- (rotate(fert.worms) * ep.in) #need to rotate matrix to each column is multiplied by respective fecundity rate, not each ro
+  new.in <- rotate(rotate(rotate(new.in)))
+  new.in <- rowSums(new.in)
     
 
-    compartment <- mf.cpt
+  compartment <- mf.cpt
 
-    compartments_ind <- (mf.st -1) + compartment
-    #there's mf.st to mf.end
-    mf.birthed <-rpois(N, new.in*DT)# new.in changing to make right shape? check
+  compartments_ind <- (mf.st -1) + compartment
+  mf.birthed <-rpois(N, new.in*DT)# CHECK
+  #current load   
+  mf.cur <- dat[,compartments_ind]
+
+  N <- length(treat.vec)
     
-
-#debug
-cat("NAs in new.in / mf.birthed:", sum(is.na(new.in)), "\n")
-cat("Length of new.in:", length(new.in), "\n")
-cat("new.in range:", range(new.in, na.rm = TRUE), "\n")
+  mf.die <- rbinom(N, pmax(0L, mf.cur), mf.mort)    
 
 
-
-    mf.cur <- dat[,compartments_ind]
-
+  mf.mu <- rep(1 - exp(-mu.rates.mf[mf.cpt] * DT), N)
 
 
+  mf.loss.aged <- rbinom(N, pmax(0L, mf.cur - mf.die), (DT/time.each.comp))
 
-####FURTHER DEBUGGING
-  cat("ncol(dat):", ncol(dat), "\n")
-cat("mf.st:", mf.st, "\n")
-cat("Column calculation: (mf.st - 1) + mf.cpt =", (mf.st - 1) + mf.cpt, "\n")
-cat("First few non-NA columns:", which(colSums(!is.na(dat)) > 0), "\n")
-
-
-
-
-#DEBUG CHECKS
-# --- DIAGNOSTICS (remove once fixed) ---
-cat("mf.cpt:", mf.cpt, "\n")
-cat("compartments_ind:", compartments_ind, "\n")
-cat("mf.cur range:", range(mf.cur, na.rm = TRUE), "\n")
-cat("NAs in mf.cur:", sum(is.na(mf.cur)), "\n")
-cat("Negatives in mf.cur:", sum(mf.cur < 0, na.rm = TRUE), "\n")
-cat("mf.mort range:", range(mf.mort, na.rm = TRUE), "\n")
-# ---------------------------------------    
-    
-    #mp is just length of human population, so to account for treatment we can just use human population definition used for adult worms
-    N <- length(treat.vec)
-    
-    #mf.mu versus mf.mort? <- check
-   # mf.die <- rbinom(N, mf.cur , mf.mort) #death from compartment
-#mf.die getting errors so need to curb it to ensure size nonneg
-mf.die <- rbinom(N, pmax(0L, mf.cur), mf.mort)    
-
-
-mf.mu <- rep(1 - exp(-mu.rates.mf[mf.cpt] * DT), N)
-
-
-
-
-    #aging out at rate mf.move
-#    mf.loss.aged <- rbinom(N, (mf.cur - mf.die),rep((DT/time.each.comp), mf.move))
-# remaining <- pmax(0L, mf.cur - mf.die)
-# mf.loss.aged <- rbinom(N, remaining, rep((DT/time.each.comp), mf.move))  
-mf.loss.aged <- rbinom(N, pmax(0L, mf.cur - mf.die), (DT/time.each.comp))
-
-    #now to make mf.age.in stochastic, we have mf.birthed <- new.in, so the age 1 is fine, just need f$
-#can use from det defn mf.in = dat[, 6 + mf.cpt], should mimic mf.loss.aged
-#should define it as the aging in compartment that still has MF after death and aging
-    
-    
-#    mf.age.in <- rep(0,N)
- #   temp.in <- which((mf.cur - mf.die - mf.loss.aged) >0)
-    #checking for MF in age compartment after death and aging, will deal with age class 1 in a sec
-#gotta define a in.param var, check if there is one for MF aging [CHECK]
-#just use mf.move.rate? mf.move
- 
-
- in.param <- mf.move
- in.param <- rep(1 - exp(-mf.move * DT), N)   
+  in.param <- mf.move
+  in.param <- rep(1 - exp(-mf.move * DT), N)   
    
-#   if(length(temp.in) >0) {
- #      mf.age.in[temp.in] <- rbinom(length(temp.in),
- #             (mf.cur[temp.in] - mf.die[temp.in] - mf.loss.aged[temp.in]),
- #              in.param[temp.in])
-       
- 
-# }   
-
-# mf.age.in[1:N] <- mf.birthed 
 
 
+  if(mf.cpt == 1){
+    mf.out <- mf.cur + mf.birthed - mf.die - mf.loss.aged
+  }
 
- 
-#    #now the changes, by compartment
- #   if(mf.cpt ==1){
+  if(mf.cpt > 1){
+    mf.out <- mf.cur + aging_in - mf.die - mf.loss.aged  # aging_in comes from previous compartment
+  }
 
-
-  #  mf.out <- mf.cur + mf.birthed - mf.die - mf.loss.aged
-
-#debug
-#cat("NAs in mf.out before return:", sum(is.na(mf.out)), "\n")
-
- #   trans.mf.out <- which(mf.out < 0)
-  #  if(length(trans.mf.out)>0){print('MF negative output1')}
-  #  
-  #  }
-    
-  #  if(mf.cpt >1){
-  #   mf.age.in <- rep(0, N)
-  #  temp.in <- which((mf.cur - mf.die - mf.loss.aged) > 0)
-  #  if(length(temp.in) > 0) {
-  #      mf.age.in[temp.in] <- rbinom(length(temp.in),
-  #          (mf.cur[temp.in] - mf.die[temp.in] - mf.loss.aged[temp.in]),
-  #          in.param[temp.in])
-  #  }#
-
-
-
-   # mf.out <- mf.cur + mf.age.in - mf.die - mf.loss.aged
-
-
-
-
-#debug
-#cat("NAs in mf.out before return:", sum(is.na(mf.out)), "\n")
-
-
-   
- #   trans.mf.out <- which(mf.out < 0)
-  #  if(length(trans.mf.out)>0){print('MF negative output2')}
-   #   
-      
-   # }}
-    
-
-
-mf.loss.aged <- rbinom(N, pmax(0L, mf.cur - mf.die), (DT/time.each.comp))
-
-if(mf.cpt == 1){
-  mf.out <- mf.cur + mf.birthed - mf.die - mf.loss.aged
-}
-
-if(mf.cpt > 1){
-  mf.out <- mf.cur + aging_in - mf.die - mf.loss.aged  # aging_in comes from previous compartment
-}
-
-mf.out <- pmax(0L, mf.out)  # safety floor
-
+ mf.out <- pmax(0L, mf.out)  # safety floor
 
 }
     
     #output, depending on scenario
- #
-
 return(list(mf_out = mf.out, loss_aged = mf.loss.aged))
-
- #  return(mf.out)
   }
 
 
