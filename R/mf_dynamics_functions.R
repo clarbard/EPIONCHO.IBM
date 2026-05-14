@@ -59,12 +59,17 @@ change.micro <- function(mf.st = 7, give.treat= give.treat, mu.rates.mf= mort.ra
     #taken from mf_dynamics_function directly
     tao <- ((iteration - 1) * DT) - treat.vec # tao is zero if treatment has been given at this timestep
 
-    mu.mf.prime <- ((tao + up) ^ (- kap)) # additional mortality due to ivermectin treatment
+    mu.mf.prime <- ifelse(tao + up > 0, (tao + up)^(-kap), 0)  #guard against <=0((tao + up) ^ (- kap)) # additional mortality due to ivermectin treatment
 
-    mu.mf.prime[which(is.na(mu.mf.prime) == TRUE)] <- 0
+    mu.mf.prime[which(is.na(mu.mf.prime) == TRUE)] <- 0 #mu.mf.prime[is.na(mu.mf.prime)] <- 0 ?
 
-    mf.mu <- mf.mu + mu.mf.prime #this is the big change
+    mf.mu <- mf.mu + mu.mf.prime #this is the big change, base + treatment
 
+    # convert to probability
+    mf.mort <- pmin(1, 1 - exp(-mf.mu * DT))  # pmin caps at 1 incase the rate is very high
+    
+    
+    
   # indexes for fertile worms (to use in production of mf)
     fert.worms.start <-  ws + num.comps * 2
     fert.worms.end <-  (ws - 1) + num.comps * 3
@@ -85,8 +90,8 @@ change.micro <- function(mf.st = 7, give.treat= give.treat, mu.rates.mf= mort.ra
 
     mf.cur <- dat[,compartments_ind] #current MF load in compartment
     #mortality -- check if correct
-    mf.mu <- rep(1 - exp(-mu.rates.mf[mf.cpt] * DT), N)
-    mf.mort <- mf.mu #unnecessary, and sloppy notation
+
+  
     #making death stochastic using rbinom()
     mf.die <- rbinom(N, pmax(0L, mf.cur), mf.mort) 
     #aging out using rbinom()
