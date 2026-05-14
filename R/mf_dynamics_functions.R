@@ -37,12 +37,13 @@ rotate <- function(x) {
 
 change.micro <- function(mf.st = 7, give.treat= give.treat, mu.rates.mf= mort.rates.mf,
 		 iteration = i,  mf.cpt=mf.c, num.comps=num.comps.worm, ws=worms.start,
-                 dat= all.mats.cur,
+     dat= all.mats.cur,
 		 treat.vec=treat.vec.in,
-                 DT=DT, time.each.comp=time.each.comp.worms,
+     DT=DT, time.each.comp=time.each.comp.worms,
 		 aging_in = rep(0,N),
 		 num.mf.comps = num.mf.comps, fec.rates = fec.rates.worms, mf.move.rate = mf.move.rate,
-		 up = up, kap = kap, treat.start = treat.start){
+		 up = up, kap = kap, treat.start = treat.start, 
+		 treat.stop = treat.stop){
   
   #for both scenarios (treatment & no treatment)
    ep.in <- fec.rates
