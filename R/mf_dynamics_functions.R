@@ -110,7 +110,11 @@ change.micro <- function(mf.st = 7, give.treat= give.treat, mu.rates.mf= mort.ra
 }  
   
   ###########NON-TREATMENT SCENARIO##############
- if(give.treat == 0){
+   
+   
+   #######ATM, also for the non-treatment period of treatment scenario
+   #give.treat == 1 & iteration >= treat.start
+ if(give.treat == 0 | give.treat == 1 & iteration < treat.start | give.treat == 1 & iteration > treat.end){
       
   #mortality      
   mf.mort <- 1 - exp(-mu.rates.mf[mf.cpt] * DT)
