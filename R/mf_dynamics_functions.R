@@ -37,7 +37,7 @@ rotate <- function(x) {
 
 change.micro <- function(mf.st = 7, give.treat= give.treat, mu.rates.mf= mort.rates.mf,
 		 iteration = i,  mf.cpt=mf.c, num.comps=num.comps.worm, ws=worms.start,
-     dat= all.mats.cur,
+     dat= all.mats.cur, #check -- keeping it cur for now
 		 treat.vec=treat.vec.in,
      DT=DT, time.each.comp=time.each.comp.worms,
 		 aging_in = rep(0,N),
@@ -49,7 +49,6 @@ change.micro <- function(mf.st = 7, give.treat= give.treat, mu.rates.mf= mort.ra
    ep.in <- fec.rates
    mf.move <- mf.move.rate
    N <- length(treat.vec)
-   mf.mu <- rep(mu.rates.mf[mf.cpt], N)
 
 #there's a number of repetitions, could make this more concise   
 
@@ -66,9 +65,8 @@ change.micro <- function(mf.st = 7, give.treat= give.treat, mu.rates.mf= mort.ra
 
     mu.mf.prime[is.na(mu.mf.prime)] <- 0  # mu.mf.prime[which(is.na(mu.mf.prime) == TRUE)] <- 0 #mu.mf.prime[is.na(mu.mf.prime)] <- 0 ?
     mf.mu <- mf.mu + mu.mf.prime #this is the big change, base + treatment
-    
-  #debuggg
-    cat("Any NAs produced mf.mu? Num:", length(is.na(mf.mu)))
+    mf.mu <- pmin(1, 1 - exp(-mf.mu * DT)) #fixing the error
+
     }
     
     if(iteration < treat.start){
@@ -77,40 +75,46 @@ change.micro <- function(mf.st = 7, give.treat= give.treat, mu.rates.mf= mort.ra
      
     if(iteration > treat.stop){
       mf.mu <- rep(1 - exp(-mu.rates.mf[mf.cpt] * DT), N)
-
     }
+     
+     
+     #checking for fertile female worms to birth new MF    
+     # indexes for fertile worms (to use in production of mf)
+     fert.worms.start <-  ws + num.comps * 2
+     fert.worms.end <-  (ws - 1) + num.comps * 3
+     
+     # indexes to check if there are males (males start is just 'ws')
+     # there must be >= 1 male worm for females to produce microfilariae
+     mal.worms.end <- (ws - 1) + num.comps
+     
+     fert.worms <- dat[, fert.worms.start:fert.worms.end] #number of fertile females worms
+     
+     #fertile worms + male worm -> new birthed mf
+     new.in <- (rotate(fert.worms) * ep.in) #need to rotate matrix to each column is multiplied by respective fecundity rate, not each ro
+     new.in <- rotate(rotate(rotate(new.in)))
+     new.in <- rowSums(new.in)
+     
+     
+     compartment <- mf.cpt
+
+     
+     compartments_ind <- (mf.st -1) + compartment
+     mf.birthed <-rpois(N, new.in*DT)# CHECK
+     #current load   
+     
+     mf.cur <- dat[,compartments_ind]
+     
+     N <- length(treat.vec)
+  
+     
+     
+     mf.die <- rbinom(N, pmax(0L, mf.cur), mf.mu)    
+     cat("mf.die", mf.die[1:5] )
+     
+     mf.loss.aged <- rbinom(N, pmax(0L, mf.cur - mf.die), (DT/time.each.comp))
+     cat("mf.loss.aged", mf.loss.aged[1:5])
+
     
-
-  # indexes for fertile worms (to use in production of mf)
-    fert.worms.start <-  ws + num.comps * 2
-    fert.worms.end <-  (ws - 1) + num.comps * 3
-
-  # indexes to check if there are males (males start is just 'ws')
-  # there must be >= 1 male worm for females to produce microfilariae
-    mal.worms.end <- (ws - 1) + num.comps
-
-    fert.worms <- dat[, fert.worms.start:fert.worms.end] #number of fertile females worms
-    #fertile worms + male worm -> new birthed mf
-    new.in <- (rotate(fert.worms) * ep.in) #need to rotate matrix to each column is multiplied by respective fecundity rate, not each row
-    new.in <- rotate(rotate(rotate(new.in)))
-    new.in <- rowSums(new.in)
-#indexing  compartment location    
-    compartments_ind <- (mf.st -1) + mf.cpt
-    mf.birthed <-rpois(N, new.in*DT ) # check, might be wrong scale, also check if Poisson?
-
-
-    mf.cur <- dat[,compartments_ind] #current MF load in compartment
-    #mortality -- check if correct
-
-    
-    mf.die <- rbinom(N, pmax(0L, mf.cur), mf.mu)    
-    
-    #aging out using rbinom()
-    mf.loss.aged <- rbinom(N, pmax(0L, mf.cur - mf.die), (DT/time.each.comp))
-
-   #influx/movement param
-    in.param <- mf.move
-    in.param <- rep(1 - exp(-mf.move * DT), N) #hopefully will fix NAs
 
 #change by compartment
     if(mf.cpt == 1){
@@ -167,10 +171,6 @@ change.micro <- function(mf.st = 7, give.treat= give.treat, mu.rates.mf= mort.ra
 
 
   mf.loss.aged <- rbinom(N, pmax(0L, mf.cur - mf.die), (DT/time.each.comp))
-
-  in.param <- mf.move
-  in.param <- rep(1 - exp(-mf.move * DT), N)   
-   
 
 
   if(mf.cpt == 1){
