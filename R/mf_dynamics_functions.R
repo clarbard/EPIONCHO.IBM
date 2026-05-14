@@ -55,21 +55,32 @@ change.micro <- function(mf.st = 7, give.treat= give.treat, mu.rates.mf= mort.ra
 
   #######FOR TREATMENT SCENARIO#####
 
-   if(give.treat == 1 & iteration >= treat.start){
-    #taken from mf_dynamics_function directly
+   if(give.treat == 1){
+    
+    if(iteration >= treat.start){
+      
+    #should i add:   mf.mu <- rep(1 - exp(-mu.rates.mf[mf.cpt] * DT), N) ?
     tao <- ((iteration - 1) * DT) - treat.vec # tao is zero if treatment has been given at this timestep
 
     mu.mf.prime <- ifelse(tao + up > 0, (tao + up)^(-kap), 0)  #guard against <=0((tao + up) ^ (- kap)) # additional mortality due to ivermectin treatment
 
-    mu.mf.prime[which(is.na(mu.mf.prime) == TRUE)] <- 0 #mu.mf.prime[is.na(mu.mf.prime)] <- 0 ?
-
+    mu.mf.prime[is.na(mu.mf.prime)] <- 0  # mu.mf.prime[which(is.na(mu.mf.prime) == TRUE)] <- 0 #mu.mf.prime[is.na(mu.mf.prime)] <- 0 ?
     mf.mu <- mf.mu + mu.mf.prime #this is the big change, base + treatment
+    
+  #debuggg
+    cat("Any NAs produced mf.mu? Num:", length(is.na(mf.mu)))
+    }
+    
+    if(iteration < treat.start){
+      mf.mu <- rep(1 - exp(-mu.rates.mf[mf.cpt] * DT), N)
+    }
+     
+    if(iteration > treat.stop){
+      mf.mu <- rep(1 - exp(-mu.rates.mf[mf.cpt] * DT), N)
 
-    # convert to probability
-    mf.mort <- pmin(1, 1 - exp(-mf.mu * DT))  # pmin caps at 1 incase the rate is very high
+    }
     
-    
-    
+
   # indexes for fertile worms (to use in production of mf)
     fert.worms.start <-  ws + num.comps * 2
     fert.worms.end <-  (ws - 1) + num.comps * 3
@@ -91,9 +102,9 @@ change.micro <- function(mf.st = 7, give.treat= give.treat, mu.rates.mf= mort.ra
     mf.cur <- dat[,compartments_ind] #current MF load in compartment
     #mortality -- check if correct
 
-  
-    #making death stochastic using rbinom()
-    mf.die <- rbinom(N, pmax(0L, mf.cur), mf.mort) 
+    
+    mf.die <- rbinom(N, pmax(0L, mf.cur), mf.mu)    
+    
     #aging out using rbinom()
     mf.loss.aged <- rbinom(N, pmax(0L, mf.cur - mf.die), (DT/time.each.comp))
 
@@ -119,13 +130,12 @@ change.micro <- function(mf.st = 7, give.treat= give.treat, mu.rates.mf= mort.ra
    
    
    #######ATM, also for the non-treatment period of treatment scenario
-   #give.treat == 1 & iteration >= treat.start
- if(give.treat == 0 | give.treat == 1 & iteration < treat.start | give.treat == 1 & iteration > treat.stop){
+   #nah deleted moved up | give.treat == 1 & iteration < treat.start | give.treat == 1 & iteration > treat.stop
+ if(give.treat == 0){
       
   #mortality      
-  mf.mort <- 1 - exp(-mu.rates.mf[mf.cpt] * DT)
-  mf.mu <- rep(mf.mort, N)
-  mf.mort <- mf.mu #unnecessary, and sloppy notation, but i'll fix later
+  mf.mu <- rep(1 - exp(-mu.rates.mf[mf.cpt] * DT), N)
+
 
   #checking for fertile female worms to birth new MF    
   # indexes for fertile worms (to use in production of mf)
@@ -153,10 +163,7 @@ change.micro <- function(mf.st = 7, give.treat= give.treat, mu.rates.mf= mort.ra
 
   N <- length(treat.vec)
     
-  mf.die <- rbinom(N, pmax(0L, mf.cur), mf.mort)    
-
-
-  mf.mu <- rep(1 - exp(-mu.rates.mf[mf.cpt] * DT), N)
+  mf.die <- rbinom(N, pmax(0L, mf.cur), mf.mu)    
 
 
   mf.loss.aged <- rbinom(N, pmax(0L, mf.cur - mf.die), (DT/time.each.comp))
