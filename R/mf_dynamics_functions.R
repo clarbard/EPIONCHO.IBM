@@ -49,6 +49,8 @@ change.micro <- function(mf.st = 7, give.treat= give.treat, mu.rates.mf= mort.ra
    ep.in <- fec.rates
    mf.move <- mf.move.rate
    N <- length(treat.vec)
+   #mf.mu <- rep(mu.rates.mf[mf.cpt], N) 
+   
 
 #there's a number of repetitions, could make this more concise   
 
@@ -56,8 +58,9 @@ change.micro <- function(mf.st = 7, give.treat= give.treat, mu.rates.mf= mort.ra
 
    if(give.treat == 1){
     
-    if(iteration >= treat.start){
-      
+    if(iteration >= treat.start & iteration <= treat.start){
+    mf.mu <- rep(1 - exp(-mu.rates.mf[mf.cpt] * DT), N)
+    mf.mu.init <- mf.mu
     #should i add:   mf.mu <- rep(1 - exp(-mu.rates.mf[mf.cpt] * DT), N) ?
     tao <- ((iteration - 1) * DT) - treat.vec # tao is zero if treatment has been given at this timestep
 
@@ -65,12 +68,13 @@ change.micro <- function(mf.st = 7, give.treat= give.treat, mu.rates.mf= mort.ra
 
     mu.mf.prime[is.na(mu.mf.prime)] <- 0  # mu.mf.prime[which(is.na(mu.mf.prime) == TRUE)] <- 0 #mu.mf.prime[is.na(mu.mf.prime)] <- 0 ?
     mf.mu <- mf.mu + mu.mf.prime #this is the big change, base + treatment
-    mf.mu <- pmin(1, 1 - exp(-mf.mu * DT)) #fixing the error
+    mf.mu <- pmin(mf.mu.init, 1 - exp(-mf.mu * DT)) #fixing the error
 
     }
     
     if(iteration < treat.start){
       mf.mu <- rep(1 - exp(-mu.rates.mf[mf.cpt] * DT), N)
+      
     }
      
     if(iteration > treat.stop){
@@ -109,10 +113,10 @@ change.micro <- function(mf.st = 7, give.treat= give.treat, mu.rates.mf= mort.ra
      
      
      mf.die <- rbinom(N, pmax(0L, mf.cur), mf.mu)    
-     cat("mf.die", mf.die[1:5] )
+    # cat("mf.die", mf.die[1:5] )
      
      mf.loss.aged <- rbinom(N, pmax(0L, mf.cur - mf.die), (DT/time.each.comp))
-     cat("mf.loss.aged", mf.loss.aged[1:5])
+    # cat("mf.loss.aged", mf.loss.aged[1:5])
 
     
 
