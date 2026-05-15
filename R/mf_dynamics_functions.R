@@ -57,10 +57,10 @@ change.micro <- function(mf.st = 7, give.treat= give.treat, mu.rates.mf= mort.ra
   #######FOR TREATMENT SCENARIO#####
 
    if(give.treat == 1){
-    
+     mf.mu <- rep(1 - exp(-mu.rates.mf[mf.cpt] * DT), N)
+     mf.mu.init <- mf.mu
     if(iteration >= treat.start & iteration <= treat.start){
-    mf.mu <- rep(1 - exp(-mu.rates.mf[mf.cpt] * DT), N)
-    mf.mu.init <- mf.mu
+    
     #should i add:   mf.mu <- rep(1 - exp(-mu.rates.mf[mf.cpt] * DT), N) ?
     tao <- ((iteration - 1) * DT) - treat.vec # tao is zero if treatment has been given at this timestep
 
